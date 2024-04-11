@@ -1,3 +1,5 @@
 *.tfvars
-*.terraform
+*.terraform*
 backend.tf
+*.pem
+*.key
