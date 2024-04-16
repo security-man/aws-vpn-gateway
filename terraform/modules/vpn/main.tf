@@ -1,19 +1,19 @@
 data "local_sensitive_file" "private_cvpn_ca_private_key" {
-  filename = ("./pki/cvpn.ca.private.key.pem")
+  filename = ("${path.root}/pki/cvpn.ca.private.key.pem")
 }
 
 data "tls_certificate" "private_cvpn_ca_certificate" {
-  content = file("./pki/cvpn.ca.private.crt.pem")
+  content = file("${path.root}/pki/cvpn.ca.crt.pem")
 }
 
 data "tls_certificate" "private_cvpn_ca_chain_certificate" {
-  content = file("./pki/cvpn.ca.private.crt.chain.pem")
+  content = file("${path.root}/pki/cvpn.ca.crt.chain.pem")
 }
 
 resource "aws_acm_certificate" "private_cvpn_ca_certificate" {
-  private_key       = data.local_sensitive_file.private_cvpn_ca_private_key
-  certificate_body  = data.tls_certificate.private_cvpn_ca_certificate
-  certificate_chain = data.tls_certificate.private_cvpn_ca_chain_certificate
+  private_key       = data.local_sensitive_file.private_cvpn_ca_private_key.content
+  certificate_body  = data.tls_certificate.private_cvpn_ca_certificate.content
+  certificate_chain = data.tls_certificate.private_cvpn_ca_chain_certificate.content
 
   lifecycle {
     create_before_destroy = true
@@ -21,21 +21,21 @@ resource "aws_acm_certificate" "private_cvpn_ca_certificate" {
 }
 
 data "local_sensitive_file" "private_cvpn_server_private_key" {
-  filename = ("./pki/cvpn-server.private.key.pem")
+  filename = ("${path.root}/pki/cvpn-server.private.key.pem")
 }
 
 data "tls_certificate" "private_cvpn_server_certificate" {
-  content = file("./pki/cvpn-server.private.crt.pem")
+  content = file("${path.root}/pki/cvpn-server.crt.pem")
 }
 
 data "tls_certificate" "private_cvpn_server_chain_certificate" {
-  content = file("./pki/cvpn-server.private.crt.chain.pem")
+  content = file("${path.root}/pki/cvpn-server.crt.chain.pem")
 }
 
 resource "aws_acm_certificate" "private_cvpn_server_certificate" {
-  private_key       = data.local_sensitive_file.private_cvpn_server_private_key
-  certificate_body  = data.tls_certificate.private_cvpn_server_certificate
-  certificate_chain = data.tls_certificate.private_cvpn_server_chain_certificate
+  private_key       = data.local_sensitive_file.private_cvpn_server_private_key.content
+  certificate_body  = data.tls_certificate.private_cvpn_server_certificate.content
+  certificate_chain = data.tls_certificate.private_cvpn_server_chain_certificate.content
 
   lifecycle {
     create_before_destroy = true
@@ -44,7 +44,7 @@ resource "aws_acm_certificate" "private_cvpn_server_certificate" {
 
 resource "aws_ec2_client_vpn_endpoint" "cvpn" {
   description            = "terraform-clientvpn-example"
-  vpc_id                 = module.network.vpc_id
+  vpc_id                 = var.vpc_id
   client_cidr_block      = "192.168.68.0/22"
   split_tunnel           = false
   server_certificate_arn = aws_acm_certificate.private_cvpn_server_certificate.arn
@@ -56,7 +56,7 @@ resource "aws_ec2_client_vpn_endpoint" "cvpn" {
 
   self_service_portal = "disabled"
 
-  security_group_ids = []
+  security_group_ids = [aws_security_group.cvpn_sg.id]
 
   #TO-DO, SORT OUT LOG GROUPS AND CONNECTION LOG OPTIONS
   connection_log_options {
@@ -67,7 +67,7 @@ resource "aws_ec2_client_vpn_endpoint" "cvpn" {
 resource "aws_ec2_client_vpn_network_association" "cvpn" {
   count                  = 1
   client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.cvpn.id
-  subnet_id              = module.network.private_subnet_id
+  subnet_id              = var.private_subnet_id
 
   # relates to https://github.com/hashicorp/terraform-provider-aws/issues/14717
   lifecycle {
@@ -75,16 +75,22 @@ resource "aws_ec2_client_vpn_network_association" "cvpn" {
   }
 }
 
+resource "aws_ec2_client_vpn_route" "cvpn_internet_route" {
+    client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.cvpn.id
+    destination_cidr_block = "0.0.0.0/0"
+    target_vpc_subnet_id = var.private_subnet_id
+}
+
 resource "aws_ec2_client_vpn_authorization_rule" "cvpn_authorisation" {
   client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.cvpn.id
-  target_network_cidr    = module.network.private_subnet_cidr
+  target_network_cidr    = "0.0.0.0/0"
   authorize_all_groups   = true
 }
 
 resource "aws_security_group" "cvpn_sg" {
   name        = "allow_tls_udp"
   description = "allow udp inbound port 443 for cvpn"
-  vpc_id      = module.network.vpc_id
+  vpc_id      = var.vpc_id
 }
 
 resource "aws_vpc_security_group_ingress_rule" "allow_tls_udp" {
