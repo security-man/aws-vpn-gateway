@@ -1,5 +1,6 @@
 *.tfvars
 *.terraform*
 backend.tf
+*.ovpn
 *.pem
 *.key
