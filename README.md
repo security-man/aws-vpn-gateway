@@ -5,7 +5,7 @@ A simple vpn gateway to allow remote access to services via a defined egress IP
 
 This simple repository contains some terraform code and scripts to deploy a handful of AWS resources to form a VPN gateway. The basic architecture is illustrated below:
 
-![alt text](https://github.com/security-man/aws-vpn-gateway/blob/main/AWS VPN Gateway - AWS Components.png?raw=true)
+![alt text](https://github.com/security-man/aws-vpn-gateway/blob/main/AWS+VPN+Gateway+-+AWS+Components.png?raw=true)
 
 ## Resources
 
@@ -31,13 +31,13 @@ The terraform/pki subdirectory contains 2 bash scripts which generate the necess
 
 This uses simple openssl commands and creates a root CA, intermediate CA, and VPN CA. These rely on RSA keys that are then signed via signing-requests made to the acting CA in the chain of trust. Finally, a server X.509 certificate and private key are generated and signed by the VPN CA:
 
-![alt text](https://github.com/security-man/aws-vpn-gateway/blob/main/AWS VPN Gateway - generate-pki.sh.png?raw=true)
+![alt text](https://github.com/security-man/aws-vpn-gateway/blob/main/AWS+VPN+Gateway+-+generate-pki.sh.png?raw=true)
 
 # generate-client.sh
 
 This uses simple openssl commands and creates a client X.509 certificate and private key. The certificate is signed using the pre-existing VPN CA that was generated using generate-pki.sh. generate-client.sh can be executed multiple times with different client names to create multiple client certificates for multiple users:
 
-![alt text](https://github.com/security-man/aws-vpn-gateway/blob/main/AWS VPN Gateway - generate-client.sh.sh.png?raw=true)
+![alt text](https://github.com/security-man/aws-vpn-gateway/blob/main/AWS+VPN+Gateway+-+generate-client.sh.sh.png?raw=true)
 
 ## How to use this repository
 
