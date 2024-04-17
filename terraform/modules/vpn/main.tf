@@ -64,6 +64,11 @@ resource "aws_ec2_client_vpn_endpoint" "cvpn" {
   }
 }
 
+resource "local_file" "cvpn_id" {
+    content  = aws_ec2_client_vpn_endpoint.cvpn.id
+    filename = "cvpn_id"
+}
+
 resource "aws_ec2_client_vpn_network_association" "cvpn" {
   count                  = 1
   client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.cvpn.id
