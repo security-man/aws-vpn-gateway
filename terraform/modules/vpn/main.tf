@@ -20,6 +20,27 @@ resource "aws_acm_certificate" "private_cvpn_ca_certificate" {
   }
 }
 
+resource "aws_ssm_parameter" "private_cvpn_ca_private_key" {
+  name  = "private_cvpn_ca_private_key"
+  tier  = "Intelligent-Tiering"
+  value = data.local_sensitive_file.private_cvpn_ca_private_key.content
+  type  = "SecureString"
+}
+
+resource "aws_ssm_parameter" "private_cvpn_ca_certificate" {
+  name  = "private_cvpn_ca_certificate"
+  tier  = "Intelligent-Tiering"
+  value = data.tls_certificate.private_cvpn_ca_certificate.content
+  type  = "SecureString"
+}
+
+resource "aws_ssm_parameter" "private_cvpn_ca_chain_certificate" {
+  name  = "private_cvpn_ca_chain_certificate"
+  tier  = "Intelligent-Tiering"
+  value = data.tls_certificate.private_cvpn_ca_chain_certificate.content
+  type  = "SecureString"
+}
+
 data "local_sensitive_file" "private_cvpn_server_private_key" {
   filename = ("${path.root}/pki/cvpn-server.private.key.pem")
 }
@@ -42,10 +63,19 @@ resource "aws_acm_certificate" "private_cvpn_server_certificate" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "cvpn_log_group" {
+  name = "CVPN_Log_Group"
+}
+
+resource "aws_cloudwatch_log_stream" "cvpn_log_stream" {
+  name           = "CVPN_Log_Stream"
+  log_group_name = aws_cloudwatch_log_group.cvpn_log_group.name
+}
+
 resource "aws_ec2_client_vpn_endpoint" "cvpn" {
-  description            = "terraform-clientvpn-example"
+  description            = "terraform-clientvpn-gateway"
   vpc_id                 = var.vpc_id
-  client_cidr_block      = "192.168.68.0/22"
+  client_cidr_block      = var.client_cidr_block
   split_tunnel           = false
   server_certificate_arn = aws_acm_certificate.private_cvpn_server_certificate.arn
 
@@ -58,15 +88,16 @@ resource "aws_ec2_client_vpn_endpoint" "cvpn" {
 
   security_group_ids = [aws_security_group.cvpn_sg.id]
 
-  #TO-DO, SORT OUT LOG GROUPS AND CONNECTION LOG OPTIONS
   connection_log_options {
-    enabled = false
+    enabled               = true
+    cloudwatch_log_group  = aws_cloudwatch_log_group.cvpn_log_group.name
+    cloudwatch_log_stream = aws_cloudwatch_log_stream.cvpn_log_stream.name
   }
 }
 
 resource "local_file" "cvpn_id" {
-    content  = aws_ec2_client_vpn_endpoint.cvpn.id
-    filename = "cvpn_id"
+  content  = aws_ec2_client_vpn_endpoint.cvpn.id
+  filename = "cvpn_id"
 }
 
 resource "aws_ec2_client_vpn_network_association" "cvpn" {
@@ -81,9 +112,9 @@ resource "aws_ec2_client_vpn_network_association" "cvpn" {
 }
 
 resource "aws_ec2_client_vpn_route" "cvpn_internet_route" {
-    client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.cvpn.id
-    destination_cidr_block = "0.0.0.0/0"
-    target_vpc_subnet_id = var.private_subnet_id
+  client_vpn_endpoint_id = aws_ec2_client_vpn_endpoint.cvpn.id
+  destination_cidr_block = "0.0.0.0/0"
+  target_vpc_subnet_id   = var.private_subnet_id
 }
 
 resource "aws_ec2_client_vpn_authorization_rule" "cvpn_authorisation" {

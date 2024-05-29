@@ -10,3 +10,4 @@ variable "PROJECT" {
   type = string
 }
 variable "cidr_block" {}
+variable "client_cidr_block" {}
